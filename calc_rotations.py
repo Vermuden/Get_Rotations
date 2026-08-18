@@ -1,5 +1,6 @@
 import math
 import sys
+import csv
 
 
 
@@ -32,6 +33,24 @@ def advance_film(distance, diameter, thickness, counter):
 
     return total_turns, total_degrees, diameter, counter
 
+
+def export_relative_degrees_csv(turns_list, filename="relative_degrees.csv"):
+    """Exports relative degrees for each frame to a CSV file to import as user parameter in fusion 360.
+    
+    Format: <name>, <unit>, <expression>, <value>, <comment>, <favourite>
+    """
+    with open(filename, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["name", "unit", "expression","value", "comment", "favourite"])
+        for frame, turns, degrees, diameter in turns_list:
+            relative_deg = degrees % 360
+            writer.writerow([f"f{frame}", "°", f"{relative_deg:.2f}","", "", ""])
+    print(f"\nRelative degrees exported to '{filename}'")
+
+
+###
+
+
 print("Enter 1 for 6x6, 2 for 6x12, 3 for 6x3, 4 for 6x12 (Gideon), 5 for 6x6 Nona Wide: ")
 
 while True:
@@ -41,10 +60,10 @@ while True:
     except ValueError:
         print("Not a number")
 
-initial_diameter = 21.6  # mm
-film_thickness_paper = 0.1  # mm
-film_thickness_total = 0.22  # mm
-update_steps = 10000000.0 
+initial_diameter = 21.8  # mm
+film_thickness_paper = 0.11  # mm
+film_thickness_total = 0.25  # mm
+update_steps = 1000000.0 
 relative_degrees = 370
 counter = 0
 
@@ -72,7 +91,7 @@ elif selection == 3: # 6x3
 elif selection == 4: # 612 Gideon
     initial_advance_paper = 188  # mm war 337.5
     initial_advance_film = 35 + 128 # mm
-    frame_distance = 128  # mm
+    frame_distance = 129  # mm
     num_frames = 6
     total_steps = 168734218
     steps_percent = 1687342
@@ -113,3 +132,4 @@ for frame, turns, degrees, diameter in turns_list:
     print(f"|   {frame:2d}   |     {relative_deg:7.2f}     | {turns:7.4f} |   {degrees:8.2f}   |")
 
 print(counter)
+export_relative_degrees_csv(turns_list)
