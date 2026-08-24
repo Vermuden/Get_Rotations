@@ -82,12 +82,12 @@ elif selection == 2: # 6x12 v0.1
     total_steps = 176887976
     steps_percent = 1768879
 elif selection == 3: # 6x3
-    initial_advance_paper = 268  # mm war 337.5
-    initial_advance_film = 52 # mm
-    frame_distance = 33  # mm
+    initial_advance_paper = 188  # mm war 337.5
+    initial_advance_film = 30 + 32 # mm
+    frame_distance = 33.5  # mm
     num_frames = 24
-    total_steps = 187244373
-    steps_percent = 1872443 
+    total_steps = 169815297
+    steps_percent = 1698152 
 elif selection == 4: # 612 Gideon
     initial_advance_paper = 188  # mm war 337.5
     initial_advance_film = 35 + 128 # mm
@@ -106,30 +106,50 @@ else:
     sys.exit("Enter a number between 1 and 4.")
 
 diameter = initial_diameter
-turns_list = []
+turns_list = [] # frame number | turns to next Frame | Degrees to next Frame | Diameter | Total Turns from Zero | Realtive Degrees from Zero
 step_size = 1.0 / update_steps  # Fractional step updates
 
 
 # First film advance first part only paper, then to frame 1 with film
-advance_1, degrees_1, diameter, counter = advance_film(initial_advance_paper, diameter, film_thickness_paper, counter)
+turns_1, degrees_1, diameter, counter = advance_film(initial_advance_paper, diameter, film_thickness_paper, counter)
 
-advance_2, degrees_2, diameter, counter = advance_film(initial_advance_film , diameter, film_thickness_total, counter)
+turns_2, degrees_2, diameter, counter = advance_film(initial_advance_film , diameter, film_thickness_total, counter)
 
-total_advance = advance_1 + advance_2
+total_turns = turns_1 + turns_2
 total_degrees = degrees_1 + degrees_2
-turns_list.append((1, total_advance, total_degrees, diameter))
+relative_zero = total_degrees % 360
+turns_list.append([1, total_turns, total_degrees, diameter, total_degrees, relative_zero])
 
 # Advances for each frame (64mm per frame)
 for i in range(2, num_frames + 1):
     turns, degrees, diameter, counter = advance_film(frame_distance, diameter, film_thickness_total, counter)
-    turns_list.append((i, turns, degrees, diameter))
+    total_degrees = total_degrees + degrees
+    relative_zero = total_degrees % 360
+    turns_list.append([i, turns, degrees, diameter, total_degrees, relative_zero])
 
+sorted_list = sorted(turns_list, key=lambda turns_list: turns_list[5])
 
-print("\n  Frame  | Relative Degrees |  Turns   | Total Degrees |")
-print("---------------------------------------------------------")
-for frame, turns, degrees, diameter in turns_list:
+#print("| Frame | Delta to frame in line above |")
+#for frame, turns, degrees, diameter,total_degrees, relative_zero in sorted_list:
+#      print(f"| {frame:2d} | {relative_zero:8.2f} |")
+
+sorted_list.insert(0, [0, 0, 0, initial_diameter, 0, 0,0])
+# Calc Delta to Frame relative Frame before relative; not number but in order of appearence on a circle
+for i in range(1, num_frames+1):
+    delta = sorted_list[i][5] - sorted_list[i-1][5]
+    sorted_list[i].append(delta)
+
+print("\n| Frame  | Relative Degrees |  Turns   | Total Degrees next Frame | Total Degrees from Zero |")
+print("-----------------------------------------------------------------------------------------------")
+for frame, turns, degrees, diameter, total_degrees, relative_zero, delta in turns_list:
     relative_deg = degrees % 360  # Normalize within 0–360
-    print(f"|   {frame:2d}   |     {relative_deg:7.2f}     | {turns:7.4f} |   {degrees:8.2f}   |")
+    print(f"|   {frame:2d}   |     {relative_deg:7.2f}     | {turns:7.4f} |   {degrees:8.2f}   |      {total_degrees:8.2f} |     {relative_zero:8.2f} |\n---------------------------------------------------------------------")
+
+print("\n\n--------------------------------------------------------------------\n\n")
+
+print("| Frame | Delta to frame in line above |")
+for frame, turns, degrees, diameter,total_degrees, relative_zero, delta in sorted_list:
+      print(f"| {frame:2d} | {delta:8.2f} |")
 
 print(counter)
 export_relative_degrees_csv(turns_list)
