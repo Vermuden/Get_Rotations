@@ -1,6 +1,7 @@
 import math
 import sys
 import csv
+from tabulate import tabulate
 
 
 
@@ -42,9 +43,8 @@ def export_relative_degrees_csv(turns_list, filename="relative_degrees.csv"):
     with open(filename, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["name", "unit", "expression","value", "comment", "favourite"])
-        for frame, turns, degrees, diameter in turns_list:
-            relative_deg = degrees % 360
-            writer.writerow([f"f{frame}", "°", f"{relative_deg:.2f}","", "", ""])
+        for frame, turns, degrees, diameter, total_degrees, relative_zero, delta, relative_degrees in turns_list:
+            writer.writerow([f"f{frame}", "°", f"{relative_degrees:.2f}","", "", ""])
     print(f"\nRelative degrees exported to '{filename}'")
 
 
@@ -67,27 +67,30 @@ update_steps = 1000000.0
 relative_degrees = 370
 counter = 0
 
-if selection == 1: # 6x6
+if selection == 1: # 6x6, Legacy
     initial_advance_paper = 268  # mm war 337.5
     initial_advance_film = 66 # mm
     frame_distance = 64  # mm
     num_frames = 12
     total_steps = 178259228
     steps_percent = 1782592
-elif selection == 2: # 6x12 v0.1
+    csv_name = "relative_degrees_6x6.csv"
+elif selection == 2: # 6x12 v0.1, Legacy
     initial_advance_paper = 296  # mm war 337.5
     initial_advance_film = 100 # mm
     frame_distance = 128  # mm
     num_frames = 6
     total_steps = 176887976
     steps_percent = 1768879
+    csv_name = "relative_degrees_6x12.csv"
 elif selection == 3: # 6x3
     initial_advance_paper = 188  # mm war 337.5
-    initial_advance_film = 30 + 32 # mm
+    initial_advance_film = 28 + 33 # mm
     frame_distance = 33.5  # mm
     num_frames = 24
     total_steps = 169815297
     steps_percent = 1698152 
+    csv_name = "relative_degrees_6x3.csv"
 elif selection == 4: # 612 Gideon
     initial_advance_paper = 188  # mm war 337.5
     initial_advance_film = 35 + 128 # mm
@@ -95,13 +98,15 @@ elif selection == 4: # 612 Gideon
     num_frames = 6
     total_steps = 168734218
     steps_percent = 1687342
-elif selection == 5: #Nona 2 (Wide)
+    csv_name = "relative_degrees_6x12.csv"
+elif selection == 5: #Nona 2 (Wide), 6x6
     initial_advance_paper = 188 # mm war 337.5
     initial_advance_film = 35 + 60 # mm
     frame_distance = 66  # mm
     num_frames = 12
     total_steps = 173491191
     steps_percent = 1734912
+    csv_name = "relative_degrees_6x6.csv"
 else:
     sys.exit("Enter a number between 1 and 4.")
 
@@ -120,36 +125,39 @@ total_degrees = degrees_1 + degrees_2
 relative_zero = total_degrees % 360
 turns_list.append([1, total_turns, total_degrees, diameter, total_degrees, relative_zero])
 
-# Advances for each frame (64mm per frame)
+# Advances for each frame 
 for i in range(2, num_frames + 1):
     turns, degrees, diameter, counter = advance_film(frame_distance, diameter, film_thickness_total, counter)
     total_degrees = total_degrees + degrees
-    relative_zero = total_degrees % 360
+    relative_zero = total_degrees % 360 # Degrees from start marker -> 0
     turns_list.append([i, turns, degrees, diameter, total_degrees, relative_zero])
 
+# Sort List in order of appearence, counterclockwise started at 0 
 sorted_list = sorted(turns_list, key=lambda turns_list: turns_list[5])
 
 #print("| Frame | Delta to frame in line above |")
 #for frame, turns, degrees, diameter,total_degrees, relative_zero in sorted_list:
 #      print(f"| {frame:2d} | {relative_zero:8.2f} |")
 
-sorted_list.insert(0, [0, 0, 0, initial_diameter, 0, 0,0])
-# Calc Delta to Frame relative Frame before relative; not number but in order of appearence on a circle
+sorted_list.insert(0, [0, 0, 0, initial_diameter, 0, 0,0]) # Insert entry for start marker 0
+
+print("sorted")
+# Calc Delta from frame to Frame; not frame number but in order of appearence on a circle
 for i in range(1, num_frames+1):
     delta = sorted_list[i][5] - sorted_list[i-1][5]
     sorted_list[i].append(delta)
 
-print("\n| Frame  | Relative Degrees |  Turns   | Total Degrees next Frame | Total Degrees from Zero |")
-print("-----------------------------------------------------------------------------------------------")
-for frame, turns, degrees, diameter, total_degrees, relative_zero, delta in turns_list:
-    relative_deg = degrees % 360  # Normalize within 0–360
-    print(f"|   {frame:2d}   |     {relative_deg:7.2f}     | {turns:7.4f} |   {degrees:8.2f}   |      {total_degrees:8.2f} |     {relative_zero:8.2f} |\n---------------------------------------------------------------------")
+# Calc and print Delta from fram to frame in numerical order -> Delta from f0 to f1, Delta f1 to f2, ...
 
-print("\n\n--------------------------------------------------------------------\n\n")
+print("turns")
+for i in range (0,num_frames):
+    rel_deg = turns_list[i][2] % 360  # Normalize within 0–360
+    turns_list[i].append(rel_deg)
 
-print("| Frame | Delta to frame in line above |")
-for frame, turns, degrees, diameter,total_degrees, relative_zero, delta in sorted_list:
-      print(f"| {frame:2d} | {delta:8.2f} |")
+# print(tabulate(turns_list, headers=['Frame', 'Turns', 'Total Degrees Next Frame', 'Diameter', 'Total Degrees', 'Degrees To Zero', 'Rel Degrees, Countrclockwise', 'Rel Degrees, Numerical order'], tablefmt='orgtbl'))
+
+
+print(tabulate(sorted_list, headers=['Frame', 'Turns', 'Total Degrees Next Frame', 'Diameter', 'Total Degrees', 'Degrees To Zero', 'Rel Degrees, Countrclockwise', 'Rel Degrees, Numerical order'], tablefmt='orgtbl'))
 
 print(counter)
-export_relative_degrees_csv(turns_list)
+export_relative_degrees_csv(turns_list, csv_name)
